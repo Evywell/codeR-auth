@@ -4,6 +4,8 @@
 # Put parameters here that don't need to change on each machine where the app is deployed
 # https://symfony.com/doc/current/best_practices/configuration.html#application-related-configuration
 parameters:
+    opensslPrivateKeysPath: '%env(resolve:OPENSSL_PRIVATE_KEYS_PATH)%'
+    opensslPublicKeysPath: '%env(resolve:OPENSSL_PUBLIC_KEYS_PATH)%'
 
 services:
     # default configuration for services in *this* file
@@ -17,7 +19,8 @@ services:
         resource: '../src/'
         exclude:
             - '../src/DependencyInjection/'
-            - '../src/Entity/'
+            - '../src/Database/Entity/'
+            - '../src/Database/migrations'
             - '../src/Kernel.php'
             - '../src/Tests/'
 
@@ -27,5 +30,22 @@ services:
         resource: '../src/Controller/'
         tags: ['controller.service_arguments']
 
-    # add more service definitions when explicit configuration is needed
-    # please note that last definitions always *replace* previous ones
+    App\Services\JWTTokenManager:
+        class: App\Services\JWTTokenManager
+        autowire: true
+        arguments:
+            $ttl: '%env(resolve:JWT_TOKEN_TTL)%'
+            $baseUrl: '%env(APP_URL)%'
+            $opensslPrivateKeysPath: '%opensslPrivateKeysPath%'
+
+    App\Services\Tickets\TicketService:
+        class: App\Services\Tickets\TicketService
+        autowire: true
+        arguments:
+            $passphrase: '%env(JWT_PASSPHRASE)%'
+
+    app.event.jwt_created_listener:
+        class: App\Event\JWT\JWTCreatedListener
+        autowire: true
+        tags:
+            - { name: kernel.event_listener, event: lexik_jwt_authentication.on_jwt_created, method: onJWTCreated }
